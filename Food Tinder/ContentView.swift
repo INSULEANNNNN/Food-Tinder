@@ -1,16 +1,25 @@
-//
-//  ContentView.swift
-//  Food Tinder
-//
-//  Created by INSU on 14/4/2569 BE.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var authViewModel = AuthViewModel()
+    
     var body: some View {
-        
-        LoginView()
+        Group {
+            if authViewModel.isLoggedIn {
+                if authViewModel.isOnboarded {
+                    MainView()
+                } else {
+                    OnboardingView {
+                        authViewModel.completeOnboarding()
+                    }
+                }
+            } else {
+                LoginView {
+                    authViewModel.login()
+                }
+            }
+        }
+        .environmentObject(authViewModel) // ส่งสถานะไปให้หน้าอื่นใช้ได้
     }
 }
 

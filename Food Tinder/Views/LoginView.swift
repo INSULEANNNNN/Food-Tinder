@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct LoginView: View {
+    var onLoginSuccess: () -> Void // Callback for navigation
+    
     @State private var email = ""
     @State private var password = ""
     @State private var isLoading = false
@@ -8,11 +10,10 @@ struct LoginView: View {
     @State private var isShowingSignUp = false
     
     // Theme Colors
-    let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255) // Food-inspired Orange/Red
+    let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
     
     var body: some View {
         ZStack {
-            // Background Gradient
             LinearGradient(
                 gradient: Gradient(colors: [primaryColor.opacity(0.1), .white]),
                 startPoint: .top,
@@ -23,7 +24,6 @@ struct LoginView: View {
             VStack(spacing: 24) {
                 Spacer()
                 
-                // Logo & Header
                 VStack(spacing: 12) {
                     Text("🍕")
                         .font(.system(size: 80))
@@ -32,14 +32,13 @@ struct LoginView: View {
                         .font(.system(size: 36, weight: .black, design: .rounded))
                         .foregroundColor(primaryColor)
                     
-                    Text("Swipe Match Eat")
+                    Text("Swipe. Match. Eat.")
                         .font(.subheadline)
                         .foregroundColor(.gray)
                         .fontWeight(.medium)
                 }
                 .padding(.bottom, 30)
                 
-                // Input Fields
                 VStack(spacing: 16) {
                     CustomTextField(icon: "envelope.fill", placeholder: "Email", text: $email)
                         .autocapitalization(.none)
@@ -56,7 +55,6 @@ struct LoginView: View {
                         .padding(.horizontal)
                 }
                 
-                // Action Buttons
                 VStack(spacing: 16) {
                     Button(action: handleAuthAction) {
                         if isLoading {
@@ -88,7 +86,6 @@ struct LoginView: View {
                     }
                 }
                 
-                // Social Login Section
                 VStack(spacing: 20) {
                     HStack {
                         Rectangle().frame(height: 1).foregroundColor(.gray.opacity(0.2))
@@ -98,11 +95,11 @@ struct LoginView: View {
                     
                     HStack(spacing: 20) {
                         SocialButton(icon: "applelogo", title: "Apple", color: .black) {
-                            print("Apple Login Clicked")
+                            onLoginSuccess() // Simulated login
                         }
                         
                         SocialButton(icon: "g.circle.fill", title: "Google", color: .white, textColor: .black) {
-                            print("Google Login Clicked")
+                            onLoginSuccess() // Simulated login
                         }
                     }
                 }
@@ -114,25 +111,18 @@ struct LoginView: View {
         }
     }
     
-    // จำลองการทำงาน (Mock Action)
     private func handleAuthAction() {
         isLoading = true
         errorMessage = nil
         
-        // จำลองการโหลด 1 วินาที
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             isLoading = false
-            print("\(isShowingSignUp ? "Sign Up" : "Sign In") with: \(email)")
-            
-            // ลองโชว์ Error สมมติถ้าเป็นรหัสผิด
-            if password == "1234" {
-                errorMessage = "Invalid password. Please try again."
-            }
+            onLoginSuccess() // Simulated success
         }
     }
 }
 
-// MARK: - Subviews สำหรับตกแต่ง UI
+// Subviews (CustomTextField, CustomSecureField, SocialButton) remain unchanged...
 
 struct CustomTextField: View {
     let icon: String
@@ -196,11 +186,5 @@ struct SocialButton: View {
                     .stroke(color == .white ? Color.gray.opacity(0.2) : Color.clear, lineWidth: 1)
             )
         }
-    }
-}
-
-struct LoginView_Previews: PreviewProvider {
-    static var previews: some View {
-        LoginView()
     }
 }
