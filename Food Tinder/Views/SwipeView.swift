@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SwipeView: View {
     @StateObject var viewModel = SwipeViewModel()
+    @EnvironmentObject var matchManager: MatchManager
     
     var body: some View {
         VStack {
@@ -24,14 +25,26 @@ struct SwipeView: View {
             
             // Card Stack Container
             ZStack {
-                if viewModel.currentIndex < viewModel.restaurants.count {
+                if viewModel.isLoading {
+                    // แสดงหน้า Loading แบบสวยๆ
+                    LoadingCardView()
+                        .aspectRatio(0.75, contentMode: .fit)
+                        .padding(.horizontal, 16)
+                        .transition(.opacity)
+                } else if viewModel.currentIndex < viewModel.restaurants.count {
                     let range = viewModel.currentIndex..<min(viewModel.currentIndex + 2, viewModel.restaurants.count)
                     
                     ForEach(Array(range).reversed(), id: \.self) { index in
-                        TinderCard(place: viewModel.restaurants[index]) { isLike in
+                        let place = viewModel.restaurants[index]
+                        TinderCard(place: place) { isLike in
                             viewModel.swipe(isLike: isLike)
                         }
-                        .aspectRatio(0.75, contentMode: .fit) // กำหนดอัตราส่วนให้เท่ากันทุกใบ (3:4)
+                        .id(place.id) // บังคับให้เป็นคนละ View กันตาม ID ของร้าน
+                        .transition(.asymmetric(
+                            insertion: .scale.combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                        .aspectRatio(0.75, contentMode: .fit)
                         .padding(.horizontal, 16)
                     }
                 } else {
@@ -42,21 +55,25 @@ struct SwipeView: View {
                             .fontWeight(.bold)
                         Text("ไม่เหลือร้านอาหารในพื้นที่ของคุณแล้ว")
                             .foregroundColor(.gray)
-                        Button("เริ่มใหม่") {
-                            viewModel.currentIndex = 0
+                        Button(action: {
+                            Task {
+                                await viewModel.loadRestaurants()
+                            }
+                        }) {
+                            Text("ค้นหาอีกครั้ง")
+                                .fontWeight(.bold)
+                                .padding()
+                                .background(Color(red: 255/255, green: 87/255, blue: 51/255))
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
                         }
-                        .fontWeight(.bold)
-                        .padding()
-                        .background(Color(red: 255/255, green: 87/255, blue: 51/255))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             // Footer Control Buttons
-            if viewModel.currentIndex < viewModel.restaurants.count {
+            if !viewModel.isLoading && viewModel.currentIndex < viewModel.restaurants.count {
                 HStack(spacing: 45) {
                     Button(action: {
                         viewModel.swipe(isLike: false)
@@ -82,6 +99,9 @@ struct SwipeView: View {
             }
         }
         .background(Color.gray.opacity(0.02).ignoresSafeArea())
+        .onAppear {
+            viewModel.matchManager = matchManager
+        }
     }
 }
 

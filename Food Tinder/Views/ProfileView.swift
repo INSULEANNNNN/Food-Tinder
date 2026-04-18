@@ -10,7 +10,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationView {
             List {
-                Section(header: Text("Account Profile")) {
+                Section(header: Text("ข้อมูลบัญชี")) {
                     HStack(spacing: 16) {
                         Circle()
                             .fill(primaryColor.opacity(0.1))
@@ -29,12 +29,12 @@ struct ProfileView: View {
                     .padding(.vertical, 8)
                 }
                 
-                Section(header: Text("Settings")) {
-                    NavigationLink(destination: Text("Edit Profile")) {
-                        Label("Edit Profile", systemImage: "person.fill")
+                Section(header: Text("การตั้งค่า")) {
+                    NavigationLink(destination: EditProfileView()) {
+                        Label("แก้ไขโปรไฟล์", systemImage: "person.fill")
                     }
                     NavigationLink(destination: FilterView()) {
-                        Label("Food Preferences", systemImage: "slider.horizontal.3")
+                        Label("ความต้องการด้านอาหาร", systemImage: "slider.horizontal.3")
                     }
                 }
                 
@@ -44,7 +44,7 @@ struct ProfileView: View {
                     }) {
                         HStack {
                             Spacer()
-                            Text("Log Out")
+                            Text("ออกจากระบบ")
                                 .foregroundColor(.red)
                                 .fontWeight(.bold)
                             Spacer()
@@ -52,7 +52,7 @@ struct ProfileView: View {
                     }
                 }
             }
-            .navigationTitle("Profile")
+            .navigationTitle("โปรไฟล์")
         }
     }
 }

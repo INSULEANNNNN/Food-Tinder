@@ -3,7 +3,7 @@ import SwiftUI
 struct FilterView: View {
     @Environment(\.dismiss) var dismiss
     @State private var distance: Double = 5.0
-    @State private var priceLevels: Set<Int> = [1, 2]
+    @State private var maxPrice: Double = 300.0
     @State private var cuisine: String = ""
     
     let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
@@ -11,12 +11,12 @@ struct FilterView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Search Radius")) {
+                Section(header: Text("ระยะทางที่ค้นหา")) {
                     VStack {
                         HStack {
-                            Text("Distance")
+                            Text("ระยะทาง")
                             Spacer()
-                            Text("\(Int(distance)) miles")
+                            Text("\(Int(distance)) กิโลเมตร")
                                 .foregroundColor(.gray)
                         }
                         Slider(value: $distance, in: 1...20, step: 1)
@@ -25,39 +25,49 @@ struct FilterView: View {
                     .padding(.vertical, 8)
                 }
                 
-                Section(header: Text("Price Level")) {
-                    HStack(spacing: 20) {
-                        ForEach(1...4, id: \.self) { level in
-                            PriceButton(level: level, isSelected: priceLevels.contains(level)) {
-                                if priceLevels.contains(level) {
-                                    if priceLevels.count > 1 { priceLevels.remove(level) }
-                                } else {
-                                    priceLevels.insert(level)
-                                }
-                            }
+                Section(header: Text("งบประมาณ (บาท)")) {
+                    VStack {
+                        HStack {
+                            Text("ราคาไม่เกิน")
+                            Spacer()
+                            Text("\(Int(maxPrice).formatted()) บาท")
+                                .fontWeight(.bold)
+                                .foregroundColor(primaryColor)
+                        }
+                        Slider(value: $maxPrice, in: 100...10000, step: 100)
+                            .accentColor(primaryColor)
+                        
+                        HStack {
+                            Text("100")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Spacer()
+                            Text("10,000")
+                                .font(.caption)
+                                .foregroundColor(.gray)
                         }
                     }
                     .padding(.vertical, 8)
                 }
                 
-                Section(header: Text("Cuisine / Keyword")) {
-                    TextField("e.g. Sushi, Italian, Burgers", text: $cuisine)
+                Section(header: Text("ประเภทอาหาร / คีย์เวิร์ด")) {
+                    TextField("เช่น ส้มตำ, ชาบู, พิซซ่า", text: $cuisine)
                 }
                 
                 Section {
                     Button(action: { dismiss() }) {
-                        Text("Apply Filters")
+                        Text("ใช้ตัวกรอง")
                             .fontWeight(.bold)
                             .frame(maxWidth: .infinity)
                             .foregroundColor(primaryColor)
                     }
                 }
             }
-            .navigationTitle("Filters")
+            .navigationTitle("ตัวกรอง")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("ยกเลิก") { dismiss() }
                 }
             }
         }

@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct Food_TinderApp: App {
+    @StateObject private var matchManager = MatchManager()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(matchManager)
         }
     }
 }

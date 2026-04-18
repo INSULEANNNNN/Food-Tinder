@@ -15,7 +15,9 @@ struct ContentView: View {
                 }
             } else {
                 LoginView {
-                    authViewModel.login()
+                    Task {
+                        await authViewModel.login()
+                    }
                 }
             }
         }

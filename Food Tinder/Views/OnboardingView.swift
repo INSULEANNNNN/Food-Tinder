@@ -39,12 +39,12 @@ struct OnboardingView: View {
             } else if currentStep == 1 {
                 OnboardingStep(
                     emoji: "🍕",
-                    title: "Favorite Cuisines",
-                    description: "Select what you're usually in the mood for.",
+                    title: "ประเภทอาหารที่ชอบ",
+                    description: "เลือกประเภทอาหารที่คุณสนใจเป็นพิเศษ",
                     content: AnyView(
                         ScrollView {
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                ForEach(["Italian", "Sushi", "Burgers", "Thai", "Mexican", "Desserts"], id: \.self) { item in
+                                ForEach(["อาหารไทย", "ญี่ปุ่น", "อิตาเลียน", "เบอร์เกอร์", "หมูกระทะ", "ของหวาน"], id: \.self) { item in
                                     CuisineTag(title: item)
                                 }
                             }
@@ -54,18 +54,37 @@ struct OnboardingView: View {
             } else {
                 OnboardingStep(
                     emoji: "💰",
-                    title: "Price Preference",
-                    description: "How much do you usually want to spend?",
+                    title: "งบประมาณที่คุณต้องการ",
+                    description: "เลือกช่วงราคาอาหารที่คุณต้องการค้นหา",
                     content: AnyView(
-                        HStack(spacing: 20) {
-                            ForEach(1...4, id: \.self) { level in
-                                Text(String(repeating: "$", count: level))
-                                    .fontWeight(.bold)
-                                    .padding()
-                                    .background(Color.gray.opacity(0.1))
-                                    .cornerRadius(10)
+                        VStack(spacing: 20) {
+                            HStack {
+                                Text("1 บาท")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                Spacer()
+                                Text("10,000 บาท")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
                             }
+                            
+                            Slider(value: Binding(
+                                get: { pricePreference },
+                                set: { pricePreference = $0 }
+                            ), in: 100...10000, step: 100)
+                            .accentColor(primaryColor)
+                            
+                            HStack {
+                                Text("ราคาไม่เกิน:")
+                                    .fontWeight(.medium)
+                                Text("\(Int(pricePreference).formatted()) บาท")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(primaryColor)
+                                    .font(.title3)
+                            }
+                            .padding(.top, 10)
                         }
+                        .padding(.horizontal)
                     )
                 )
             }
@@ -75,11 +94,11 @@ struct OnboardingView: View {
             // Navigation
             HStack {
                 if currentStep > 0 {
-                    Button("Back") { currentStep -= 1 }
+                    Button("ย้อนกลับ") { currentStep -= 1 }
                         .foregroundColor(.gray)
                 }
                 Spacer()
-                Button(currentStep == 2 ? "Get Started" : "Next") {
+                Button(currentStep == 2 ? "เริ่มต้นใช้งาน" : "ถัดไป") {
                     if currentStep == 2 {
                         onComplete()
                     } else {
@@ -92,6 +111,8 @@ struct OnboardingView: View {
         }
         .padding(30)
     }
+    
+    @State private var pricePreference: Double = 500.0
     
     private func nextStep() {
         withAnimation { currentStep += 1 }

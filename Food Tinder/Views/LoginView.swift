@@ -1,123 +1,123 @@
 import SwiftUI
 
 struct LoginView: View {
-    var onLoginSuccess: () -> Void // Callback for navigation
+    var onLoginSuccess: () -> Void
     
     @State private var email = ""
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var isShowingSignUp = false
     
-    // Theme Colors
     let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
     
     var body: some View {
-        ZStack {
-            LinearGradient(
-                gradient: Gradient(colors: [primaryColor.opacity(0.1), .white]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
-            VStack(spacing: 24) {
-                Spacer()
+        NavigationStack {
+            ZStack {
+                LinearGradient(
+                    gradient: Gradient(colors: [primaryColor.opacity(0.1), .white]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
                 
-                VStack(spacing: 12) {
-                    Text("🍕")
-                        .font(.system(size: 80))
+                VStack(spacing: 24) {
+                    Spacer()
                     
-                    Text("Food Tinder")
-                        .font(.system(size: 36, weight: .black, design: .rounded))
-                        .foregroundColor(primaryColor)
-                    
-                    Text("Swipe. Match. Eat.")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .fontWeight(.medium)
-                }
-                .padding(.bottom, 30)
-                
-                VStack(spacing: 16) {
-                    CustomTextField(icon: "envelope.fill", placeholder: "Email", text: $email)
-                        .autocapitalization(.none)
-                        .keyboardType(.emailAddress)
-                    
-                    CustomSecureField(icon: "lock.fill", placeholder: "Password", text: $password)
-                }
-                
-                if let error = errorMessage {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-                
-                VStack(spacing: 16) {
-                    Button(action: handleAuthAction) {
-                        if isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            Text(isShowingSignUp ? "Create Account" : "Sign In")
-                                .fontWeight(.bold)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(primaryColor)
-                                .foregroundColor(.white)
-                                .cornerRadius(14)
-                                .shadow(color: primaryColor.opacity(0.3), radius: 10, x: 0, y: 5)
-                        }
-                    }
-                    .disabled(isLoading || email.isEmpty || password.isEmpty)
-                    
-                    Button(action: {
-                        withAnimation {
-                            isShowingSignUp.toggle()
-                            errorMessage = nil
-                        }
-                    }) {
-                        Text(isShowingSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up")
-                            .font(.subheadline)
+                    VStack(spacing: 12) {
+                        Text("🍕")
+                            .font(.system(size: 80))
+                        
+                        Text("Food Tinder")
+                            .font(.system(size: 36, weight: .black, design: .rounded))
                             .foregroundColor(primaryColor)
-                            .fontWeight(.semibold)
+                        
+                        Text("Swipe. Match. Eat.")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .fontWeight(.medium)
                     }
-                }
-                
-                VStack(spacing: 20) {
-                    HStack {
-                        Rectangle().frame(height: 1).foregroundColor(.gray.opacity(0.2))
-                        Text("OR").font(.caption2).foregroundColor(.gray).padding(.horizontal, 8)
-                        Rectangle().frame(height: 1).foregroundColor(.gray.opacity(0.2))
+                    .padding(.bottom, 30)
+                    
+                    VStack(spacing: 16) {
+                        CustomTextField(icon: "envelope.fill", placeholder: "อีเมล", text: $email)
+                            .autocapitalization(.none)
+                            .keyboardType(.emailAddress)
+                        
+                        CustomSecureField(icon: "lock.fill", placeholder: "รหัสผ่าน", text: $password)
                     }
                     
-                    HStack(spacing: 20) {
-                        SocialButton(icon: "applelogo", title: "Apple", color: .black) {
-                            onLoginSuccess() // Simulated login
+                    if let error = errorMessage {
+                        Text(error)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    
+                    VStack(spacing: 16) {
+                        Button(action: handleLogin) {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Text("เข้าสู่ระบบ")
+                                    .fontWeight(.bold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(primaryColor)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(14)
+                                    .shadow(color: primaryColor.opacity(0.3), radius: 10, x: 0, y: 5)
+                            }
+                        }
+                        .disabled(isLoading || email.isEmpty || password.isEmpty)
+                        
+                        NavigationLink(destination: RegisterView(onRegisterSuccess: onLoginSuccess)) {
+                            HStack {
+                                Text("ยังไม่มีบัญชี?")
+                                    .foregroundColor(.gray)
+                                Text("สมัครสมาชิก")
+                                    .foregroundColor(primaryColor)
+                                    .fontWeight(.bold)
+                            }
+                            .font(.subheadline)
+                        }
+                    }
+                    
+                    VStack(spacing: 20) {
+                        HStack {
+                            Rectangle().frame(height: 1).foregroundColor(.gray.opacity(0.2))
+                            Text("หรือเข้าใช้ด้วย").font(.caption2).foregroundColor(.gray).padding(.horizontal, 8)
+                            Rectangle().frame(height: 1).foregroundColor(.gray.opacity(0.2))
                         }
                         
-                        SocialButton(icon: "g.circle.fill", title: "Google", color: .white, textColor: .black) {
-                            onLoginSuccess() // Simulated login
+                        HStack(spacing: 20) {
+                            SocialButton(icon: "applelogo", title: "Apple", color: .black) {
+                                onLoginSuccess()
+                            }
+                            
+                            SocialButton(icon: "g.circle.fill", title: "Google", color: .white, textColor: .black) {
+                                onLoginSuccess()
+                            }
                         }
                     }
+                    .padding(.top, 10)
+                    
+                    Spacer()
                 }
-                .padding(.top, 10)
-                
-                Spacer()
+                .padding(30)
             }
-            .padding(30)
         }
     }
     
-    private func handleAuthAction() {
+    private func handleLogin() {
         isLoading = true
         errorMessage = nil
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        // Mock API Call
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             isLoading = false
-            onLoginSuccess() // Simulated success
+            onLoginSuccess()
         }
     }
 }
