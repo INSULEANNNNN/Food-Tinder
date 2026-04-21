@@ -2,8 +2,6 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    @State private var name = "ดิว eat dog"
-    @State private var email = "dew@example.com"
     
     let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
     
@@ -15,13 +13,18 @@ struct ProfileView: View {
                         Circle()
                             .fill(primaryColor.opacity(0.1))
                             .frame(width: 70, height: 70)
-                            .overlay(Text("🐶").font(.largeTitle))
+                            .overlay(
+                                Text(authViewModel.currentUser?.name.prefix(1) ?? "👤")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(primaryColor)
+                            )
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(name)
+                            Text(authViewModel.currentUser?.name ?? "กำลังโหลด...")
                                 .font(.title3)
                                 .fontWeight(.bold)
-                            Text(email)
+                            Text(authViewModel.currentUser?.email ?? "")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         }
@@ -53,6 +56,9 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle("โปรไฟล์")
+            .task {
+                await authViewModel.fetchProfile()
+            }
         }
     }
 }

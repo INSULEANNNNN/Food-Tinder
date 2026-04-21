@@ -1,12 +1,16 @@
 import SwiftUI
+import Supabase
+import Auth
 
 struct LoginView: View {
-    var onLoginSuccess: () -> Void
+    @EnvironmentObject var authViewModel: AuthViewModel
+    var onLoginSuccess: (String, String) -> Void
     
     @State private var email = ""
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showAppleAlert = false
     
     let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
     
@@ -46,7 +50,7 @@ struct LoginView: View {
                         CustomSecureField(icon: "lock.fill", placeholder: "รหัสผ่าน", text: $password)
                     }
                     
-                    if let error = errorMessage {
+                    if let error = authViewModel.errorMessage {
                         Text(error)
                             .foregroundColor(.red)
                             .font(.caption)
@@ -56,7 +60,7 @@ struct LoginView: View {
                     
                     VStack(spacing: 16) {
                         Button(action: handleLogin) {
-                            if isLoading {
+                            if authViewModel.isLoading {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
@@ -70,9 +74,11 @@ struct LoginView: View {
                                     .shadow(color: primaryColor.opacity(0.3), radius: 10, x: 0, y: 5)
                             }
                         }
-                        .disabled(isLoading || email.isEmpty || password.isEmpty)
+                        .disabled(authViewModel.isLoading || email.isEmpty || password.isEmpty)
                         
-                        NavigationLink(destination: RegisterView(onRegisterSuccess: onLoginSuccess)) {
+                        NavigationLink(destination: RegisterView(onRegisterSuccess: {
+                            onLoginSuccess(email, password)
+                        })) {
                             HStack {
                                 Text("ยังไม่มีบัญชี?")
                                     .foregroundColor(.gray)
@@ -93,11 +99,13 @@ struct LoginView: View {
                         
                         HStack(spacing: 20) {
                             SocialButton(icon: "applelogo", title: "Apple", color: .black) {
-                                onLoginSuccess()
+                                showAppleAlert = true
                             }
                             
                             SocialButton(icon: "g.circle.fill", title: "Google", color: .white, textColor: .black) {
-                                onLoginSuccess()
+                                Task {
+                                    await authViewModel.loginWithGoogle()
+                                }
                             }
                         }
                     }
@@ -108,21 +116,19 @@ struct LoginView: View {
                 .padding(30)
             }
         }
+        .alert("Coming soon!", isPresented: $showAppleAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Coming soon when we have enough money!")
+        }
     }
     
     private func handleLogin() {
-        isLoading = true
-        errorMessage = nil
-        
-        // Mock API Call
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            isLoading = false
-            onLoginSuccess()
+        Task {
+            await authViewModel.login(email: email, password: password)
         }
     }
 }
-
-// Subviews (CustomTextField, CustomSecureField, SocialButton) remain unchanged...
 
 struct CustomTextField: View {
     let icon: String

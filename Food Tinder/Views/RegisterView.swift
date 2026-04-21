@@ -11,10 +11,13 @@ struct RegisterView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     
+    @State private var showSuccessAlert = false
+    
     let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
     
     var body: some View {
         ZStack {
+            // ... (rest of background)
             LinearGradient(
                 gradient: Gradient(colors: [primaryColor.opacity(0.1), .white]),
                 startPoint: .top,
@@ -24,6 +27,7 @@ struct RegisterView: View {
             
             ScrollView {
                 VStack(spacing: 24) {
+                    // ... (rest of header and fields)
                     VStack(spacing: 12) {
                         Text("สร้างบัญชีใหม่")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
@@ -91,6 +95,13 @@ struct RegisterView: View {
             }
         }
         .navigationBarHidden(true)
+        .alert("สมัครสมาชิกสำเร็จ", isPresented: $showSuccessAlert) {
+            Button("ตกลง") {
+                dismiss()
+            }
+        } message: {
+            Text("กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยันการลงทะเบียนก่อนเข้าสู่ระบบ")
+        }
     }
     
     private func handleRegister() {
@@ -102,10 +113,32 @@ struct RegisterView: View {
         isLoading = true
         errorMessage = nil
         
-        // Mock API Call
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isLoading = false
-            onRegisterSuccess()
+        Task {
+            do {
+                // 1. Check if email is already in use
+                let emailInUse = try await AuthService.shared.isEmailInUse(email: email)
+                
+                if emailInUse {
+                    await MainActor.run {
+                        errorMessage = "อีเมลนี้ถูกใช้งานแล้ว"
+                        isLoading = false
+                    }
+                    return
+                }
+                
+                // 2. Perform registration
+                _ = try await AuthService.shared.register(email: email, name: fullName, password: password)
+                
+                await MainActor.run {
+                    isLoading = false
+                    showSuccessAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    isLoading = false
+                }
+            }
         }
     }
 }

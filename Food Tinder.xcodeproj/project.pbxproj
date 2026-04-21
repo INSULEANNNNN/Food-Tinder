@@ -6,6 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		912E00262F936C9B00A230CD /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 912E00252F936C9B00A230CD /* Auth */; };
+		912E00282F936C9B00A230CD /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 912E00272F936C9B00A230CD /* Functions */; };
+		912E002A2F936C9B00A230CD /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 912E00292F936C9B00A230CD /* PostgREST */; };
+		912E002C2F936C9B00A230CD /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 912E002B2F936C9B00A230CD /* Realtime */; };
+		912E002E2F936C9B00A230CD /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 912E002D2F936C9B00A230CD /* Storage */; };
+		912E00302F936C9B00A230CD /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 912E002F2F936C9B00A230CD /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		0DCD7E042F8E817E00C19E9D /* Food Tinder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Food Tinder.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +32,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				912E002A2F936C9B00A230CD /* PostgREST in Frameworks */,
+				912E00282F936C9B00A230CD /* Functions in Frameworks */,
+				912E00302F936C9B00A230CD /* Supabase in Frameworks */,
+				912E00262F936C9B00A230CD /* Auth in Frameworks */,
+				912E002E2F936C9B00A230CD /* Storage in Frameworks */,
+				912E002C2F936C9B00A230CD /* Realtime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -33,6 +48,7 @@
 			isa = PBXGroup;
 			children = (
 				0DCD7E062F8E817E00C19E9D /* Food Tinder */,
+				912E00242F936C9B00A230CD /* Frameworks */,
 				0DCD7E052F8E817E00C19E9D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +59,13 @@
 				0DCD7E042F8E817E00C19E9D /* Food Tinder.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		912E00242F936C9B00A230CD /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -65,6 +88,12 @@
 			);
 			name = "Food Tinder";
 			packageProductDependencies = (
+				912E00252F936C9B00A230CD /* Auth */,
+				912E00272F936C9B00A230CD /* Functions */,
+				912E00292F936C9B00A230CD /* PostgREST */,
+				912E002B2F936C9B00A230CD /* Realtime */,
+				912E002D2F936C9B00A230CD /* Storage */,
+				912E002F2F936C9B00A230CD /* Supabase */,
 			);
 			productName = "Food Tinder";
 			productReference = 0DCD7E042F8E817E00C19E9D /* Food Tinder.app */;
@@ -94,6 +123,9 @@
 			);
 			mainGroup = 0DCD7DFB2F8E817E00C19E9D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				912E00232F9369E900A230CD /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0DCD7E052F8E817E00C19E9D /* Products */;
 			projectDirPath = "";
@@ -251,8 +283,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GL7W27M2LW;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Food-Tinder-Info.plist";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to find the best restaurants around you!";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -282,8 +317,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GL7W27M2LW;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Food-Tinder-Info.plist";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to find the best restaurants around you!";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -328,6 +366,50 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		912E00232F9369E900A230CD /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase-community/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		912E00252F936C9B00A230CD /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 912E00232F9369E900A230CD /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		912E00272F936C9B00A230CD /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 912E00232F9369E900A230CD /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		912E00292F936C9B00A230CD /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 912E00232F9369E900A230CD /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		912E002B2F936C9B00A230CD /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 912E00232F9369E900A230CD /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		912E002D2F936C9B00A230CD /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 912E00232F9369E900A230CD /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		912E002F2F936C9B00A230CD /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 912E00232F9369E900A230CD /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0DCD7DFC2F8E817E00C19E9D /* Project object */;
 }

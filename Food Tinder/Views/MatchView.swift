@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MatchView: View {
     @EnvironmentObject var matchManager: MatchManager
+    @State private var selectedRestaurant: GooglePlace?
     
     let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
     
@@ -27,37 +28,42 @@ struct MatchView: View {
                 } else {
                     List {
                         ForEach(matchManager.matchedRestaurants) { restaurant in
-                            HStack(spacing: 16) {
-                                // รูปภาพจำลอง
-                                AsyncImage(url: URL(string: restaurant.imageUrl)) { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    Color.gray.opacity(0.1)
+                            Button(action: {
+                                selectedRestaurant = restaurant
+                            }) {
+                                HStack(spacing: 16) {
+                                    AsyncImage(url: URL(string: restaurant.imageUrl)) { image in
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        Color.gray.opacity(0.1)
+                                    }
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(restaurant.name)
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                        Text(restaurant.address)
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                            .lineLimit(1)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Button(action: {
+                                        shareMatch(restaurant: restaurant)
+                                    }) {
+                                        Image(systemName: "square.and.arrow.up")
+                                            .foregroundColor(primaryColor)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
-                                .frame(width: 60, height: 60)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(restaurant.name)
-                                        .font(.headline)
-                                    Text(restaurant.address)
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                        .lineLimit(1)
-                                }
-                                
-                                Spacer()
-                                
-                                Button(action: {
-                                    shareMatch(restaurant: restaurant.name)
-                                }) {
-                                    Image(systemName: "square.and.arrow.up")
-                                        .foregroundColor(primaryColor)
-                                }
-                                .buttonStyle(PlainButtonStyle())
                             }
+                            .buttonStyle(PlainButtonStyle())
                             .padding(.vertical, 4)
                         }
                     }
@@ -65,16 +71,40 @@ struct MatchView: View {
                 }
             }
             .navigationTitle("ร้านที่ถูกใจ")
+            .sheet(item: $selectedRestaurant) { restaurant in
+                RestaurantDetailView(restaurant: restaurant)
+            }
         }
     }
     
-    private func shareMatch(restaurant: String) {
-        let text = "เฮ้! ไปกินร้าน \(restaurant) กันเถอะ เราเพิ่ง Match กันใน Food Tinder! 🍕🍟"
+    private func shareMatch(restaurant: GooglePlace) {
+        let mapURL = "https://www.google.com/maps/search/?api=1&query=\(restaurant.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")&query_place_id=\(restaurant.id)"
+        
+        let text = """
+        Check out \(restaurant.name) on Food Tinder! 🍕 
+        Rating: \(restaurant.rating) ⭐
+        Address: \(restaurant.address)
+        
+        View on Maps: \(mapURL)
+        """
+        
         let av = UIActivityViewController(activityItems: [text], applicationActivities: nil)
         
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first?.rootViewController {
-            rootVC.present(av, animated: true, completion: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+           let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
+            
+            var topVC = rootVC
+            while let presentedVC = topVC.presentedViewController {
+                topVC = presentedVC
+            }
+            
+            if let popoverController = av.popoverPresentationController {
+                popoverController.sourceView = topVC.view
+                popoverController.sourceRect = CGRect(x: topVC.view.bounds.midX, y: topVC.view.bounds.midY, width: 0, height: 0)
+                popoverController.permittedArrowDirections = []
+            }
+            
+            topVC.present(av, animated: true, completion: nil)
         }
     }
 }

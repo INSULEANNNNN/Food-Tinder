@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google_auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>124621010695-4bt32vbqgfhgso007i9opf9u3u0i22sa.apps.googleusercontent.com</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>supabase_redirect</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.phumpatananiti.Food-Tinder</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

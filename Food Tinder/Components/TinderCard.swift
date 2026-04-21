@@ -7,23 +7,39 @@ struct TinderCard: View {
     @State private var offset: CGSize = .zero
     @State private var rotation: Double = 0
     @State private var scale: CGFloat = 1.0
+    @State private var currentImageIndex = 0
+    
+    let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
     
     var body: some View {
         ZStack(alignment: .top) {
             ZStack(alignment: .bottomLeading) {
                 // Image Container
                 GeometryReader { geo in
-                    AsyncImage(url: URL(string: place.imageUrl)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .clipped()
-                    } placeholder: {
-                        ZStack {
-                            Color.gray.opacity(0.1)
-                            ProgressView()
+                    ZStack(alignment: .top) {
+                        AsyncImage(url: URL(string: place.imageUrls[currentImageIndex])) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geo.size.width, height: geo.size.height)
+                                .clipped()
+                        } placeholder: {
+                            ZStack {
+                                Color.gray.opacity(0.1)
+                                ProgressView()
+                            }
                         }
+                        
+                        // Custom Image Indicators (Dashes at the top)
+                        HStack(spacing: 4) {
+                            ForEach(0..<place.imageUrls.count, id: \.self) { index in
+                                Capsule()
+                                    .fill(index == currentImageIndex ? Color.white : Color.white.opacity(0.4))
+                                    .frame(height: 4)
+                            }
+                        }
+                        .padding(.top, 10)
+                        .padding(.horizontal, 20)
                     }
                 }
                 
@@ -72,7 +88,6 @@ struct TinderCard: View {
                 .padding(24)
             }
             .cornerRadius(28)
-            // Dynamic Shadow: ยิ่งลากไกล เงาน้อยลงเพื่อให้ดูเหมือนลอยขึ้น
             .shadow(color: Color.black.opacity(0.15), radius: abs(offset.width) / 10 + 15, x: 0, y: 10)
             
             // Like/Dislike Overlay Indicators
@@ -90,38 +105,38 @@ struct TinderCard: View {
         }
         .scaleEffect(scale)
         .offset(offset)
-        // 3D Rotation Effect
-        .rotation3DEffect(
-            .degrees(Double(offset.width / 10)),
-            axis: (x: 0, y: 1, z: 0),
-            perspective: 0.8
-        )
         .rotationEffect(.degrees(Double(offset.width / 15)))
+        .contentShape(Rectangle())
         .gesture(
-            DragGesture()
+            DragGesture(minimumDistance: 0) // Detects both taps and drags
                 .onChanged { gesture in
-                    // การเด้งขณะลาก (Springy Follow)
-                    withAnimation(.interactiveSpring(response: 0.35, dampingFraction: 0.6, blendDuration: 0.2)) {
-                        offset = gesture.translation
-                        rotation = Double(gesture.translation.width / 15)
-                        scale = 1.02 // ขยายเล็กน้อยตอนดึง
+                    // Only apply drag if we've moved significantly (prevents jumping on tap)
+                    if abs(gesture.translation.width) > 5 {
+                        withAnimation(.interactiveSpring(response: 0.35, dampingFraction: 0.6)) {
+                            offset = gesture.translation
+                            scale = 1.02
+                        }
                     }
                 }
                 .onEnded { gesture in
+                    let width = gesture.translation.width
                     let velocity = gesture.predictedEndTranslation.width
                     let threshold: CGFloat = 135
                     
-                    if gesture.translation.width > threshold || velocity > 500 {
-                        // Swipe Right (Like) - ปลิวหายไปอย่างรวดเร็ว
+                    if width > threshold || velocity > 500 {
                         swipeCard(to: 1000, isLike: true)
-                    } else if gesture.translation.width < -threshold || velocity < -500 {
-                        // Swipe Left (Dislike)
+                    } else if width < -threshold || velocity < -500 {
                         swipeCard(to: -1000, isLike: false)
                     } else {
-                        // เด้งกลับเข้ากลางแบบแรงๆ (Snap back)
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.55, blendDuration: 0.3)) {
+                        // It's a tap or a small drag
+                        if abs(width) < 5 {
+                            // This was a Tap!
+                            handleTap(at: gesture.location)
+                        }
+                        
+                        // Reset card position
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.55)) {
                             offset = .zero
-                            rotation = 0
                             scale = 1.0
                         }
                     }
@@ -129,15 +144,27 @@ struct TinderCard: View {
         )
     }
     
+    private func handleTap(at location: CGPoint) {
+        // Tapping right side (60%) goes forward, left (40%) goes back
+        let screenWidth = UIScreen.main.bounds.width
+        if location.x > screenWidth / 2 {
+            if currentImageIndex < place.imageUrls.count - 1 {
+                currentImageIndex += 1
+            } else {
+                currentImageIndex = 0 // Wrap around to first photo
+            }
+        } else {
+            if currentImageIndex > 0 {
+                currentImageIndex -= 1
+            }
+        }
+    }
+    
     private func swipeCard(to direction: CGFloat, isLike: Bool) {
-        // ปรับทิศทางให้ปลิวหายไปไกลขึ้นเพื่อให้พ้นขอบจอแน่นอน
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.3)) {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
             offset = CGSize(width: direction * 1.5, height: direction / 2) 
-            rotation = Double(direction / 5)
             scale = 0.5
         }
-        
-        // รอให้ Animation ปลิวไปไกลพอสมควรค่อยเปลี่ยน Data
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             onSwipe(isLike)
         }
@@ -154,9 +181,6 @@ struct TinderCard: View {
             )
             .foregroundColor(color)
             .rotationEffect(.degrees(text == "ชอบ" ? -15 : 15))
-            .background(
-                RoundedRectangle(cornerRadius: 15)
-                    .fill(Color.white.opacity(0.05))
-            )
+            .background(RoundedRectangle(cornerRadius: 15).fill(Color.white.opacity(0.05)))
     }
 }

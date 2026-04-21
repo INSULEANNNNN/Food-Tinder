@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 struct SwipeView: View {
     @StateObject var viewModel = SwipeViewModel()
@@ -25,7 +26,36 @@ struct SwipeView: View {
             
             // Card Stack Container
             ZStack {
-                if viewModel.isLoading {
+                if viewModel.locationStatus == .denied || viewModel.locationStatus == .restricted {
+                    // Location Denied State
+                    VStack(spacing: 20) {
+                        Image(systemName: "location.slash.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("Location Access Required")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("We need your location to show you restaurants nearby. Please enable it in Settings.")
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.gray)
+                            .padding(.horizontal, 40)
+                        
+                        Button(action: {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            Text("Open Settings")
+                                .fontWeight(.bold)
+                                .padding()
+                                .background(Color(red: 255/255, green: 87/255, blue: 51/255))
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                        }
+                    }
+                } else if viewModel.isLoading {
                     // แสดงหน้า Loading แบบสวยๆ
                     LoadingCardView()
                         .aspectRatio(0.75, contentMode: .fit)
@@ -56,9 +86,7 @@ struct SwipeView: View {
                         Text("ไม่เหลือร้านอาหารในพื้นที่ของคุณแล้ว")
                             .foregroundColor(.gray)
                         Button(action: {
-                            Task {
-                                await viewModel.loadRestaurants()
-                            }
+                            viewModel.reload()
                         }) {
                             Text("ค้นหาอีกครั้ง")
                                 .fontWeight(.bold)

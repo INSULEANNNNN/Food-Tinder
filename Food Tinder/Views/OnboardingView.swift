@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @State private var currentStep = 0
+    @StateObject private var locationManager = LocationManager()
     var onComplete: () -> Void
     
     let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
@@ -25,7 +26,10 @@ struct OnboardingView: View {
                     title: "Set Your Location",
                     description: "We'll find the best restaurants within your reach.",
                     content: AnyView(
-                        Button(action: { nextStep() }) {
+                        Button(action: { 
+                            locationManager.requestLocation()
+                            nextStep() 
+                        }) {
                             Label("Enable Location", systemImage: "location.fill")
                                 .font(.headline)
                                 .foregroundColor(.white)

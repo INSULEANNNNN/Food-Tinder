@@ -1,15 +1,24 @@
 import Foundation
+import Supabase
 
 struct UserProfile: Codable {
-    let id: String
+    let id: UUID
     var name: String
     var email: String
-    var bio: String?
-    var profileImageUrl: String?
+    var avatarUrl: String?
+    var hasOnboarded: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case email
+        case avatarUrl = "avatar_url"
+        case hasOnboarded = "has_onboarded"
+    }
 }
 
 protocol UserServiceProtocol {
-    func fetchUserProfile(userId: String) async throws -> UserProfile
+    func fetchUserProfile(userId: UUID) async throws -> UserProfile
     func updateUserProfile(_ profile: UserProfile) async throws -> Bool
 }
 
@@ -17,14 +26,22 @@ class UserService: UserServiceProtocol {
     static let shared = UserService()
     private init() {}
     
-    func fetchUserProfile(userId: String) async throws -> UserProfile {
-        try await Task.sleep(nanoseconds: 500_000_000)
-        return UserProfile(id: userId, name: "ดิว eat dog", email: "dew@example.com", bio: "สายกินที่แท้ทรู", profileImageUrl: nil)
+    func fetchUserProfile(userId: UUID) async throws -> UserProfile {
+        return try await supabase
+            .from("users")
+            .select()
+            .eq("id", value: userId)
+            .single()
+            .execute()
+            .value
     }
     
     func updateUserProfile(_ profile: UserProfile) async throws -> Bool {
-        try await Task.sleep(nanoseconds: 800_000_000)
-        // ตรงนี้ในอนาคตจะใส่: supabase.database.from("profiles").update(profile).eq("id", profile.id)
+        try await supabase
+            .from("users")
+            .update(profile)
+            .eq("id", value: profile.id)
+            .execute()
         return true
     }
 }

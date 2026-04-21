@@ -7,5 +7,9 @@ struct GooglePlace: Identifiable {
     let priceLevel: Int // 1-4
     let distance: Double // In Kilometers
     let address: String
-    let imageUrl: String
+    let imageUrls: [String]
+    
+    var imageUrl: String {
+        imageUrls.first ?? "https://via.placeholder.com/400"
+    }
 }
