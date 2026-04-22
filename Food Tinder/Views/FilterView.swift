@@ -2,9 +2,17 @@ import SwiftUI
 
 struct FilterView: View {
     @Environment(\.dismiss) var dismiss
-    @State private var distance: Double = 5.0
-    @State private var maxPrice: Double = 300.0
+    @ObservedObject var viewModel: SwipeViewModel
+    
+    @State private var distance: Double
+    @State private var maxPrice: Int
     @State private var cuisine: String = ""
+    
+    init(viewModel: SwipeViewModel) {
+        self.viewModel = viewModel
+        _distance = State(initialValue: viewModel.radius)
+        _maxPrice = State(initialValue: viewModel.maxPrice)
+    }
     
     let primaryColor = Color(red: 255/255, green: 87/255, blue: 51/255)
     
@@ -25,24 +33,27 @@ struct FilterView: View {
                     .padding(.vertical, 8)
                 }
                 
-                Section(header: Text("งบประมาณ (บาท)")) {
+                Section(header: Text("งบประมาณ (Price Level)")) {
                     VStack {
                         HStack {
-                            Text("ราคาไม่เกิน")
+                            Text("ระดับราคา")
                             Spacer()
-                            Text("\(Int(maxPrice).formatted()) บาท")
+                            Text(String(repeating: "฿", count: maxPrice))
                                 .fontWeight(.bold)
                                 .foregroundColor(primaryColor)
                         }
-                        Slider(value: $maxPrice, in: 100...10000, step: 100)
-                            .accentColor(primaryColor)
+                        Slider(value: Binding(
+                            get: { Double(maxPrice) },
+                            set: { maxPrice = Int($0) }
+                        ), in: 1...4, step: 1)
+                        .accentColor(primaryColor)
                         
                         HStack {
-                            Text("100")
+                            Text("ประหยัด")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                             Spacer()
-                            Text("10,000")
+                            Text("หรูหรา")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                         }
@@ -55,7 +66,10 @@ struct FilterView: View {
                 }
                 
                 Section {
-                    Button(action: { dismiss() }) {
+                    Button(action: { 
+                        viewModel.applyFilters(radius: distance, maxPrice: maxPrice)
+                        dismiss() 
+                    }) {
                         Text("ใช้ตัวกรอง")
                             .fontWeight(.bold)
                             .frame(maxWidth: .infinity)
@@ -95,6 +109,6 @@ struct PriceButton: View {
 
 struct FilterView_Previews: PreviewProvider {
     static var previews: some View {
-        FilterView()
+        FilterView(viewModel: SwipeViewModel())
     }
 }

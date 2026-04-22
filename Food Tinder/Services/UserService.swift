@@ -20,6 +20,7 @@ struct UserProfile: Codable {
 protocol UserServiceProtocol {
     func fetchUserProfile(userId: UUID) async throws -> UserProfile
     func updateUserProfile(_ profile: UserProfile) async throws -> Bool
+    func uploadProfileImage(userId: UUID, data: Data) async throws -> String
 }
 
 class UserService: UserServiceProtocol {
@@ -43,5 +44,24 @@ class UserService: UserServiceProtocol {
             .eq("id", value: profile.id)
             .execute()
         return true
+    }
+    
+    func uploadProfileImage(userId: UUID, data: Data) async throws -> String {
+        let fileName = "\(userId.uuidString)_\(Int(Date().timeIntervalSince1970)).jpg"
+        let path = "avatars/\(fileName)"
+        
+        _ = try await supabase.storage
+            .from("avatars")
+            .upload(
+                path,
+                data: data,
+                options: FileOptions(contentType: "image/jpeg", upsert: true)
+            )
+            
+        let publicURL = try supabase.storage
+            .from("avatars")
+            .getPublicURL(path: path)
+            
+        return publicURL.absoluteString
     }
 }

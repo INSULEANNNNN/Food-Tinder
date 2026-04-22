@@ -15,6 +15,11 @@ struct MainView: View {
                     Label("Matches", systemImage: "heart.fill")
                 }
             
+            SessionView()
+                .tabItem {
+                    Label("Partner", systemImage: "person.2.fill")
+                }
+            
             ProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "person.fill")

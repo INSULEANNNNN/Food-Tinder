@@ -17,9 +17,11 @@ struct RegisterView: View {
     
     var body: some View {
         ZStack {
-            // ... (rest of background)
+            Color(uiColor: .systemBackground)
+                .ignoresSafeArea()
+            
             LinearGradient(
-                gradient: Gradient(colors: [primaryColor.opacity(0.1), .white]),
+                gradient: Gradient(colors: [primaryColor.opacity(0.15), .clear]),
                 startPoint: .top,
                 endPoint: .bottom
             )

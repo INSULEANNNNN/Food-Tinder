@@ -17,29 +17,40 @@ struct TinderCard: View {
                 // Image Container
                 GeometryReader { geo in
                     ZStack(alignment: .top) {
-                        AsyncImage(url: URL(string: place.imageUrls[currentImageIndex])) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geo.size.width, height: geo.size.height)
-                                .clipped()
-                        } placeholder: {
+                        if !place.imageUrls.isEmpty {
+                            AsyncImage(url: URL(string: place.imageUrls[currentImageIndex])) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geo.size.width, height: geo.size.height)
+                                    .clipped()
+                            } placeholder: {
+                                ZStack {
+                                    Color.gray.opacity(0.1)
+                                    ProgressView()
+                                }
+                            }
+                        } else {
                             ZStack {
                                 Color.gray.opacity(0.1)
-                                ProgressView()
+                                Image(systemName: "photo")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.gray.opacity(0.3))
                             }
                         }
                         
                         // Custom Image Indicators (Dashes at the top)
-                        HStack(spacing: 4) {
-                            ForEach(0..<place.imageUrls.count, id: \.self) { index in
-                                Capsule()
-                                    .fill(index == currentImageIndex ? Color.white : Color.white.opacity(0.4))
-                                    .frame(height: 4)
+                        if place.imageUrls.count > 1 {
+                            HStack(spacing: 4) {
+                                ForEach(0..<place.imageUrls.count, id: \.self) { index in
+                                    Capsule()
+                                        .fill(index == currentImageIndex ? Color.white : Color.white.opacity(0.4))
+                                        .frame(height: 4)
+                                }
                             }
+                            .padding(.top, 10)
+                            .padding(.horizontal, 20)
                         }
-                        .padding(.top, 10)
-                        .padding(.horizontal, 20)
                     }
                 }
                 

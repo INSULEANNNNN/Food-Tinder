@@ -17,8 +17,11 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             ZStack {
+                Color(uiColor: .systemBackground)
+                    .ignoresSafeArea()
+                
                 LinearGradient(
-                    gradient: Gradient(colors: [primaryColor.opacity(0.1), .white]),
+                    gradient: Gradient(colors: [primaryColor.opacity(0.15), .clear]),
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -98,11 +101,11 @@ struct LoginView: View {
                         }
                         
                         HStack(spacing: 20) {
-                            SocialButton(icon: "applelogo", title: "Apple", color: .black) {
+                            SocialButton(icon: "applelogo", title: "Apple", color: .primary, textColor: Color(uiColor: .systemBackground)) {
                                 showAppleAlert = true
                             }
                             
-                            SocialButton(icon: "g.circle.fill", title: "Google", color: .white, textColor: .black) {
+                            SocialButton(icon: "g.circle.fill", title: "Google", color: Color(uiColor: .secondarySystemBackground), textColor: .primary) {
                                 Task {
                                     await authViewModel.loginWithGoogle()
                                 }
@@ -143,9 +146,8 @@ struct CustomTextField: View {
             TextField(placeholder, text: $text)
         }
         .padding()
-        .background(Color.white)
+        .background(Color(uiColor: .secondarySystemBackground))
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 }
 
@@ -162,9 +164,8 @@ struct CustomSecureField: View {
             SecureField(placeholder, text: $text)
         }
         .padding()
-        .background(Color.white)
+        .background(Color(uiColor: .secondarySystemBackground))
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 }
 

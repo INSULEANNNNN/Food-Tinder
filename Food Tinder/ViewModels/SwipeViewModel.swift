@@ -8,6 +8,10 @@ class SwipeViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var locationStatus: CLAuthorizationStatus = .notDetermined
     
+    // Filter properties
+    @Published var radius: Double = 10.0 // Larger default radius (10km)
+    @Published var maxPrice: Int = 4 
+    
     var matchManager: MatchManager?
     private let restaurantService = RestaurantService.shared
     private let locationManager = LocationManager()
@@ -34,11 +38,10 @@ class SwipeViewModel: ObservableObject {
     
     @MainActor
     func loadRestaurants(at location: CLLocationCoordinate2D) async {
-        print("SwipeViewModel: Loading restaurants at \(location.latitude), \(location.longitude)")
-        guard restaurants.isEmpty else { 
-            print("SwipeViewModel: Restaurants already loaded, skipping")
-            return 
-        }
+        // Prevent multiple simultaneous loads or loading when we already have data
+        guard !isLoading && restaurants.isEmpty else { return }
+        
+        print("SwipeViewModel: Loading restaurants at \(location.latitude), \(location.longitude) with radius \(radius)km and maxPrice \(maxPrice)")
         
         isLoading = true
         do {
@@ -46,12 +49,14 @@ class SwipeViewModel: ObservableObject {
             let fetchedRestaurants = try await restaurantService.fetchNearbyRestaurants(
                 lat: location.latitude,
                 lng: location.longitude,
-                radius: 5000.0 // 5km
+                radius: radius * 1000.0, // Convert km to meters
+                maxPrice: maxPrice
             )
             
             // Filter out already swiped ones
             let swipedIds = matchManager?.swipedPlaceIds ?? []
             self.restaurants = fetchedRestaurants.filter { !swipedIds.contains($0.id) }
+            self.currentIndex = 0
             
             print("SwipeViewModel: Found \(fetchedRestaurants.count) total, showing \(self.restaurants.count) after filtering")
         } catch {
@@ -60,10 +65,16 @@ class SwipeViewModel: ObservableObject {
         isLoading = false
     }
 
+    func applyFilters(radius: Double, maxPrice: Int) {
+        self.radius = radius
+        self.maxPrice = maxPrice
+        reload()
+    }
+
     func reload() {
         if let location = locationManager.location {
-            currentIndex = 0
             restaurants = []
+            isLoading = false // Reset loading state
             Task {
                 await loadRestaurants(at: location)
             }

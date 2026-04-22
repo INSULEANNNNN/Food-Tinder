@@ -4,6 +4,7 @@ import CoreLocation
 struct SwipeView: View {
     @StateObject var viewModel = SwipeViewModel()
     @EnvironmentObject var matchManager: MatchManager
+    @State private var showingFilter = false
     
     var body: some View {
         VStack {
@@ -14,7 +15,7 @@ struct SwipeView: View {
                     .foregroundColor(Color(red: 255/255, green: 87/255, blue: 51/255))
                 Spacer()
                 Button(action: {
-                    // Open Filter
+                    showingFilter = true
                 }) {
                     Image(systemName: "slider.horizontal.3")
                         .font(.title2)
@@ -23,6 +24,9 @@ struct SwipeView: View {
             }
             .padding(.horizontal)
             .padding(.top, 10)
+            .sheet(isPresented: $showingFilter) {
+                FilterView(viewModel: viewModel)
+            }
             
             // Card Stack Container
             ZStack {
@@ -129,6 +133,9 @@ struct SwipeView: View {
         .background(Color.gray.opacity(0.02).ignoresSafeArea())
         .onAppear {
             viewModel.matchManager = matchManager
+            if viewModel.restaurants.isEmpty {
+                viewModel.reload()
+            }
         }
     }
 }

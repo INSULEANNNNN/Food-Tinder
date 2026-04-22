@@ -65,6 +65,15 @@ struct MatchView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                             .padding(.vertical, 4)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    Task {
+                                        await matchManager.removeMatch(restaurant)
+                                    }
+                                } label: {
+                                    Label("ลบ", systemImage: "trash.fill")
+                                }
+                            }
                         }
                     }
                     .listStyle(InsetGroupedListStyle())

@@ -10,15 +10,27 @@ struct ProfileView: View {
             List {
                 Section(header: Text("ข้อมูลบัญชี")) {
                     HStack(spacing: 16) {
-                        Circle()
-                            .fill(primaryColor.opacity(0.1))
+                        if let avatarUrl = authViewModel.currentUser?.avatarUrl, let url = URL(string: avatarUrl) {
+                            AsyncImage(url: url) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                            } placeholder: {
+                                Circle().fill(primaryColor.opacity(0.1))
+                            }
                             .frame(width: 70, height: 70)
-                            .overlay(
-                                Text(authViewModel.currentUser?.name.prefix(1) ?? "👤")
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(primaryColor)
-                            )
+                            .clipShape(Circle())
+                        } else {
+                            Circle()
+                                .fill(primaryColor.opacity(0.1))
+                                .frame(width: 70, height: 70)
+                                .overlay(
+                                    Text(authViewModel.currentUser?.name.prefix(1) ?? "👤")
+                                        .font(.title)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(primaryColor)
+                                )
+                        }
                         
                         VStack(alignment: .leading, spacing: 4) {
                             Text(authViewModel.currentUser?.name ?? "กำลังโหลด...")
@@ -36,9 +48,7 @@ struct ProfileView: View {
                     NavigationLink(destination: EditProfileView()) {
                         Label("แก้ไขโปรไฟล์", systemImage: "person.fill")
                     }
-                    NavigationLink(destination: FilterView()) {
-                        Label("ความต้องการด้านอาหาร", systemImage: "slider.horizontal.3")
-                    }
+                    // FilterView will be managed from SwipeView instead, or we need to pass a VM
                 }
                 
                 Section {

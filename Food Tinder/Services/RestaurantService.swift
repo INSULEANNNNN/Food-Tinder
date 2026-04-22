@@ -6,7 +6,7 @@ struct GoogleConfig {
 }
 
 protocol RestaurantServiceProtocol {
-    func fetchNearbyRestaurants(lat: Double, lng: Double, radius: Double) async throws -> [GooglePlace]
+    func fetchNearbyRestaurants(lat: Double, lng: Double, radius: Double, maxPrice: Int?) async throws -> [GooglePlace]
     func fetchRestaurantDetails(placeId: String) async throws -> GooglePlace
 }
 
@@ -14,13 +14,13 @@ class RestaurantService: RestaurantServiceProtocol {
     static let shared = RestaurantService()
     private init() {}
     
-    func fetchNearbyRestaurants(lat: Double, lng: Double, radius: Double) async throws -> [GooglePlace] {
+    func fetchNearbyRestaurants(lat: Double, lng: Double, radius: Double, maxPrice: Int? = nil) async throws -> [GooglePlace] {
         let categories = ["thai_restaurant", "japanese_restaurant", "italian_restaurant", "cafe", "pizza_restaurant", "steak_house"]
         
         return try await withThrowingTaskGroup(of: [GooglePlace].self) { group in
             for category in categories {
                 group.addTask {
-                    return try await self.fetchCategory(category, lat: lat, lng: lng, radius: radius)
+                    return try await self.fetchCategory(category, lat: lat, lng: lng, radius: radius, maxPrice: maxPrice)
                 }
             }
             
@@ -34,7 +34,7 @@ class RestaurantService: RestaurantServiceProtocol {
         }
     }
     
-    private func fetchCategory(_ type: String, lat: Double, lng: Double, radius: Double) async throws -> [GooglePlace] {
+    private func fetchCategory(_ type: String, lat: Double, lng: Double, radius: Double, maxPrice: Int?) async throws -> [GooglePlace] {
         let url = URL(string: "https://places.googleapis.com/v1/places:searchNearby")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -60,7 +60,9 @@ class RestaurantService: RestaurantServiceProtocol {
         let rawPlaces = decodedResponse.places ?? []
         let userLocation = CLLocation(latitude: lat, longitude: lng)
         
-        return rawPlaces.filter { $0.photos != nil && ($0.rating ?? 0.0) >= 3.0 }.map { place in
+        // Looser filter: Some restaurants might not have photos in the first request, 
+        // but we still want to show them if they are good.
+        return rawPlaces.map { place in
             let photoUrls = place.photos?.map {
                 "https://places.googleapis.com/v1/\($0.name)/media?key=\(GoogleConfig.apiKey)&maxWidthPx=400"
             } ?? []
@@ -86,6 +88,14 @@ class RestaurantService: RestaurantServiceProtocol {
                 address: place.formattedAddress,
                 imageUrls: photoUrls
             )
+        }
+        // Filter out those with absolutely no images only if we have plenty of results
+        .filter { place in
+            if rawPlaces.count > 10 {
+                return !place.imageUrls.isEmpty && place.rating >= 3.0
+            } else {
+                return place.rating >= 2.0 // Lower bar if few results
+            }
         }
     }
     
