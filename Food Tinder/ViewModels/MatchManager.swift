@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 import Supabase
 import Realtime
+import CoreLocation
 
 // Structs for Supabase Interaction
 struct Swipe: Codable {
@@ -10,6 +11,11 @@ struct Swipe: Codable {
     let place_id: String
     let is_like: Bool
     let swiped_at: Date?
+}
+
+struct FTMatch: Codable {
+    let session_id: UUID
+    let place_id: String
 }
 
 struct FTSession: Codable {
@@ -22,22 +28,29 @@ struct Participant: Codable {
     let user_id: UUID
 }
 
+struct UserLocation: Codable {
+    let id: UUID
+    let last_latitude: Double?
+    let last_longitude: Double?
+}
+
 @MainActor
 class MatchManager: ObservableObject {
     @Published var matchedRestaurants: [GooglePlace] = []
     @Published var groupMatches: [GooglePlace] = []
     @Published var swipedPlaceIds: Set<String> = []
     @Published var currentSessionId: UUID?
+    @Published var joinErrorMessage: String?
     
     private var cachedUserId: UUID?
     private var isFetchingLikes = false
     private let restaurantService = RestaurantService.shared
+    private var realtimeChannel: RealtimeChannelV2?
     
     init() {
         print("MatchManager: Initialized")
     }
     
-    // Ensure the user has a session to save their swipes in
     func ensureActiveSession() async {
         if cachedUserId == nil {
             cachedUserId = try? await supabase.auth.session.user.id
@@ -56,9 +69,8 @@ class MatchManager: ObservableObject {
             
             if let existing = sessions.first {
                 self.currentSessionId = existing.id
+                await setupRealtimeSubscription(sessionId: existing.id)
                 await fetchGroupMatches()
-            } else {
-                // If no session, we'll create a default one when they swipe or they can create a group
             }
         } catch {
             print("MatchManager: Error ensuring session: \(error)")
@@ -86,6 +98,7 @@ class MatchManager: ObservableObject {
             let participant = ["session_id": created.id.uuidString, "user_id": userId.uuidString]
             try await supabase.from("session_participants").insert(participant).execute()
             
+            await setupRealtimeSubscription(sessionId: created.id)
             self.groupMatches = []
         } catch {
             print("MatchManager: Error creating group session: \(error)")
@@ -93,13 +106,12 @@ class MatchManager: ObservableObject {
     }
 
     func joinSession(code: String) async -> Bool {
+        self.joinErrorMessage = nil
         if cachedUserId == nil {
             cachedUserId = try? await supabase.auth.session.user.id
         }
         guard let userId = cachedUserId else { return false }
         
-        // In this simple version, we use the first 8 chars of UUID as code
-        // We search for a session where the ID starts with the code
         do {
             let sessions: [FTSession] = try await supabase
                 .from("sessions")
@@ -108,24 +120,96 @@ class MatchManager: ObservableObject {
                 .execute()
                 .value
             
-            if let targetSession = sessions.first(where: { $0.id.uuidString.lowercased().hasPrefix(code.lowercased()) }) {
-                let participant = ["session_id": targetSession.id.uuidString, "user_id": userId.uuidString]
-                try await supabase.from("session_participants").insert(participant).execute()
-                
-                self.currentSessionId = targetSession.id
-                await fetchGroupMatches()
-                return true
+            guard let targetSession = sessions.first(where: { $0.id.uuidString.lowercased().hasPrefix(code.lowercased()) }) else {
+                self.joinErrorMessage = "ไม่พบรหัสกลุ่มนี้"
+                return false
             }
+            
+            let currentUserLoc: [UserLocation] = try await supabase
+                .from("users")
+                .select("id, last_latitude, last_longitude")
+                .eq("id", value: userId)
+                .execute()
+                .value
+            
+            guard let myLoc = currentUserLoc.first, let myLat = myLoc.last_latitude, let myLng = myLoc.last_longitude else {
+                self.joinErrorMessage = "ไม่พบข้อมูลตำแหน่งของคุณ กรุณาเปิดใช้งาน GPS"
+                return false
+            }
+            
+            let participants: [Participant] = try await supabase
+                .from("session_participants")
+                .select("user_id")
+                .eq("session_id", value: targetSession.id)
+                .execute()
+                .value
+            
+            let participantIds = participants.map { $0.user_id.uuidString }
+            
+            let groupLocations: [UserLocation] = try await supabase
+                .from("users")
+                .select("id, last_latitude, last_longitude")
+                .in("id", values: participantIds)
+                .execute()
+                .value
+            
+            for member in groupLocations {
+                if let mLat = member.last_latitude, let mLng = member.last_longitude {
+                    let distance = calculateDistance(lat1: myLat, lng1: myLng, lat2: mLat, lng2: mLng)
+                    if distance > 3.0 {
+                        self.joinErrorMessage = "กลุ่มนี้อยู่ไกลเกินไป (ต้องห่างกันไม่เกิน 3 กม.)"
+                        return false
+                    }
+                }
+            }
+            
+            let participant = ["session_id": targetSession.id.uuidString, "user_id": userId.uuidString]
+            try await supabase.from("session_participants").insert(participant).execute()
+            
+            self.currentSessionId = targetSession.id
+            await setupRealtimeSubscription(sessionId: targetSession.id)
+            await fetchGroupMatches()
+            return true
         } catch {
             print("MatchManager: Error joining session: \(error)")
+            self.joinErrorMessage = "เกิดข้อผิดพลาดในการเข้าร่วมกลุ่ม"
         }
         return false
     }
 
+    private func calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double) -> Double {
+        let user1 = CLLocation(latitude: lat1, longitude: lng1)
+        let user2 = CLLocation(latitude: lat2, longitude: lng2)
+        return user1.distance(from: user2) / 1000.0 // KM
+    }
+
     func leaveSession() async {
+        if let channel = realtimeChannel {
+            await supabase.removeChannel(channel)
+        }
         self.currentSessionId = nil
         self.groupMatches = []
-        // Optional: delete from participants or just clear local state
+    }
+    
+    private func setupRealtimeSubscription(sessionId: UUID) async {
+        let channel = supabase.channel("session_matches_\(sessionId.uuidString)")
+        
+        let changes = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "matches",
+            filter: "session_id=eq.\(sessionId.uuidString)"
+        )
+        
+        await channel.subscribe()
+        self.realtimeChannel = channel
+        
+        Task {
+            for await _ in changes {
+                print("MatchManager: Realtime Match Detected!")
+                await self.fetchGroupMatches()
+            }
+        }
     }
     
     func fetchUserLikes() async {
@@ -144,7 +228,6 @@ class MatchManager: ObservableObject {
         let dateString = formatter.string(from: sevenDaysAgo)
         
         do {
-            // 1. Fetch ALL swipes from the last 7 days
             let allSwipes: [Swipe] = try await supabase
                 .from("swipes")
                 .select()
@@ -153,11 +236,8 @@ class MatchManager: ObservableObject {
                 .execute()
                 .value
             
-            // 2. Remember only LIKED IDs to filter them out of the stack
             let likedSwipes = allSwipes.filter { $0.is_like }
-            self.swipedPlaceIds = Set(likedSwipes.map { $0.place_id })
-            
-            print("MatchManager: Restoring \(likedSwipes.count) likes")
+            self.swipedPlaceIds = Set(allSwipes.map { $0.place_id })
             
             if likedSwipes.isEmpty { 
                 self.matchedRestaurants = []
@@ -186,42 +266,26 @@ class MatchManager: ObservableObject {
         guard let sessionId = currentSessionId else { return }
         
         do {
-            // 1. Get all participants in this session
-            let participants: [Participant] = try await supabase
-                .from("session_participants")
-                .select("user_id")
-                .eq("session_id", value: sessionId)
-                .execute()
-                .value
-            
-            let participantCount = participants.count
-            if participantCount < 2 { 
-                self.groupMatches = []
-                return 
-            }
-            
-            // 2. Get all LIKES in this session
-            let swipes: [Swipe] = try await supabase
-                .from("swipes")
+            let matches: [FTMatch] = try await supabase
+                .from("matches")
                 .select()
                 .eq("session_id", value: sessionId)
-                .eq("is_like", value: true)
                 .execute()
                 .value
             
-            // 3. Find place_ids liked by ALL participants
-            let groupedByPlace = Dictionary(grouping: swipes, by: { $0.place_id })
-            let commonPlaceIds = groupedByPlace.filter { $0.value.count >= participantCount }.map { $0.key }
+            let matchPlaceIds = matches.map { $0.place_id }
             
-            if commonPlaceIds.isEmpty {
+            if matchPlaceIds.isEmpty {
                 self.groupMatches = []
                 return
             }
             
-            // 4. Fetch details
+            let existingIds = Set(self.groupMatches.map { $0.id })
+            if Set(matchPlaceIds) == existingIds { return }
+            
             var detailedPlaces: [GooglePlace] = []
             try await withThrowingTaskGroup(of: GooglePlace.self) { group in
-                for pid in commonPlaceIds {
+                for pid in matchPlaceIds {
                     group.addTask {
                         return try await self.restaurantService.fetchRestaurantDetails(placeId: pid)
                     }
@@ -238,14 +302,12 @@ class MatchManager: ObservableObject {
     }
     
     func recordSwipe(placeId: String, isLike: Bool) async {
-        // Only update local filter if it's a LIKE
         if isLike {
             self.swipedPlaceIds.insert(placeId)
         }
         
         if currentSessionId == nil {
             await ensureActiveSession()
-            // If still nil, create one
             if currentSessionId == nil {
                 await createGroupSession()
             }
@@ -262,7 +324,7 @@ class MatchManager: ObservableObject {
             user_id: userId,
             place_id: placeId,
             is_like: isLike,
-            swiped_at: Date() // Set current date for reset logic
+            swiped_at: Date()
         )
         
         do {
@@ -270,10 +332,6 @@ class MatchManager: ObservableObject {
                 .from("swipes")
                 .upsert(swipe, onConflict: "session_id,user_id,place_id")
                 .execute()
-            
-            if isLike {
-                await fetchGroupMatches()
-            }
         } catch {
             print("MatchManager: Error saving swipe: \(error)")
         }
@@ -294,25 +352,17 @@ class MatchManager: ObservableObject {
         guard let userId = cachedUserId else { return }
         
         do {
-            // 1. Remove from local lists first for responsive UI
             withAnimation {
                 self.matchedRestaurants.removeAll(where: { $0.id == restaurant.id })
                 self.swipedPlaceIds.remove(restaurant.id)
             }
             
-            // 2. Delete from Supabase - remove by user_id and place_id to catch it 
-            // even if it was recorded in a different session
             try await supabase
                 .from("swipes")
                 .delete()
                 .eq("user_id", value: userId)
                 .eq("place_id", value: restaurant.id)
                 .execute()
-                
-            // 3. Update group matches if necessary
-            if currentSessionId != nil {
-                await fetchGroupMatches()
-            }
                 
             print("MatchManager: Successfully removed match \(restaurant.name)")
         } catch {

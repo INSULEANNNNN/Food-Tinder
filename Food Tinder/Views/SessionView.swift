@@ -155,8 +155,15 @@ struct JoinSessionView: View {
                     .padding(.horizontal)
                     .autocapitalization(.none)
                 
-                Button(action: {
-                    join()
+                if let error = matchManager.joinErrorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal)
+                }
+                
+                Button(action: { 
+                    join() 
                 }) {
                     if isLoading {
                         ProgressView()

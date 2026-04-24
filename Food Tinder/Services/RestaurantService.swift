@@ -6,7 +6,8 @@ struct GoogleConfig {
 }
 
 protocol RestaurantServiceProtocol {
-    func fetchNearbyRestaurants(lat: Double, lng: Double, radius: Double, maxPrice: Int?) async throws -> [GooglePlace]
+    func fetchNearbyRestaurants(lat: Double, lng: Double, radius: Double, minPrice: Int, maxPrice: Int) async throws -> [GooglePlace]
+    func fetchByQuery(query: String, lat: Double, lng: Double, radius: Double, minPrice: Int, maxPrice: Int) async throws -> [GooglePlace]
     func fetchRestaurantDetails(placeId: String) async throws -> GooglePlace
 }
 
@@ -14,38 +15,29 @@ class RestaurantService: RestaurantServiceProtocol {
     static let shared = RestaurantService()
     private init() {}
     
-    func fetchNearbyRestaurants(lat: Double, lng: Double, radius: Double, maxPrice: Int? = nil) async throws -> [GooglePlace] {
-        let categories = ["thai_restaurant", "japanese_restaurant", "italian_restaurant", "cafe", "pizza_restaurant", "steak_house"]
-        
-        return try await withThrowingTaskGroup(of: [GooglePlace].self) { group in
-            for category in categories {
-                group.addTask {
-                    return try await self.fetchCategory(category, lat: lat, lng: lng, radius: radius, maxPrice: maxPrice)
-                }
-            }
-            
-            var allPlaces: [GooglePlace] = []
-            for try await categoryPlaces in group {
-                allPlaces.append(contentsOf: categoryPlaces)
-            }
-            
-            let uniquePlaces = Array(Dictionary(grouping: allPlaces, by: { $0.id }).values.compactMap { $0.first })
-            return uniquePlaces.shuffled()
+    private func mapPriceLevel(_ level: Int?) -> String? {
+        guard let level = level else { return nil }
+        switch level {
+            case 1: return "PRICE_LEVEL_INEXPENSIVE"
+            case 2: return "PRICE_LEVEL_MODERATE"
+            case 3: return "PRICE_LEVEL_EXPENSIVE"
+            case 4: return "PRICE_LEVEL_VERY_EXPENSIVE"
+            default: return nil
         }
     }
     
-    private func fetchCategory(_ type: String, lat: Double, lng: Double, radius: Double, maxPrice: Int?) async throws -> [GooglePlace] {
-        let url = URL(string: "https://places.googleapis.com/v1/places:searchNearby")!
+    func fetchByQuery(query: String, lat: Double, lng: Double, radius: Double, minPrice: Int, maxPrice: Int) async throws -> [GooglePlace] {
+        let url = URL(string: "https://places.googleapis.com/v1/places:searchText")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue(GoogleConfig.apiKey, forHTTPHeaderField: "X-Goog-Api-Key")
         request.addValue("places.id,places.displayName,places.rating,places.priceLevel,places.formattedAddress,places.photos,places.location", forHTTPHeaderField: "X-Goog-FieldMask")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body: [String: Any] = [
-            "includedTypes": [type],
+        var body: [String: Any] = [
+            "textQuery": query,
             "maxResultCount": 20,
-            "locationRestriction": [
+            "locationBias": [
                 "circle": [
                     "center": ["latitude": lat, "longitude": lng],
                     "radius": radius
@@ -53,15 +45,29 @@ class RestaurantService: RestaurantServiceProtocol {
             ]
         ]
         
+        // Use all levels in range for text search
+        let levels = (minPrice...maxPrice).compactMap { mapPriceLevel($0) }
+        if !levels.isEmpty {
+            body["priceLevels"] = levels
+        }
+        
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            print("RestaurantService: SearchText Error - Status \(httpResponse.statusCode)")
+            return []
+        }
         
         let decodedResponse = try JSONDecoder().decode(GooglePlacesResponse.self, from: data)
         let rawPlaces = decodedResponse.places ?? []
-        let userLocation = CLLocation(latitude: lat, longitude: lng)
+        return processRawPlaces(rawPlaces, userLat: lat, userLng: lng, radius: radius, minPrice: minPrice, maxPrice: maxPrice)
+    }
+    
+    private func processRawPlaces(_ rawPlaces: [GoogleAPIPlace], userLat: Double, userLng: Double, radius: Double, minPrice: Int, maxPrice: Int) -> [GooglePlace] {
+        let userLocation = CLLocation(latitude: userLat, longitude: userLng)
+        let radiusInKm = radius / 1000.0
         
-        // Looser filter: Some restaurants might not have photos in the first request, 
-        // but we still want to show them if they are good.
         return rawPlaces.map { place in
             let photoUrls = place.photos?.map {
                 "https://places.googleapis.com/v1/\($0.name)/media?key=\(GoogleConfig.apiKey)&maxWidthPx=400"
@@ -71,12 +77,16 @@ class RestaurantService: RestaurantServiceProtocol {
             let distanceInKm = userLocation.distance(from: restaurantLocation) / 1000.0
             
             let priceInt: Int
-            switch place.priceLevel {
-                case "PRICE_LEVEL_INEXPENSIVE": priceInt = 1
-                case "PRICE_LEVEL_MODERATE": priceInt = 2
-                case "PRICE_LEVEL_EXPENSIVE": priceInt = 3
-                case "PRICE_LEVEL_VERY_EXPENSIVE": priceInt = 4
-                default: priceInt = 1
+            if let level = place.priceLevel {
+                switch level {
+                    case "PRICE_LEVEL_INEXPENSIVE": priceInt = 1
+                    case "PRICE_LEVEL_MODERATE": priceInt = 2
+                    case "PRICE_LEVEL_EXPENSIVE": priceInt = 3
+                    case "PRICE_LEVEL_VERY_EXPENSIVE": priceInt = 4
+                    default: priceInt = 0 // Unknown
+                }
+            } else {
+                priceInt = 0 // Unknown
             }
             
             return GooglePlace(
@@ -89,14 +99,97 @@ class RestaurantService: RestaurantServiceProtocol {
                 imageUrls: photoUrls
             )
         }
-        // Filter out those with absolutely no images only if we have plenty of results
         .filter { place in
+            // 1. Strict Distance Filter
+            if place.distance > radiusInKm {
+                print("RestaurantService: Filtering out \(place.name) - Distance \(place.distance)km > \(radiusInKm)km")
+                return false
+            }
+            
+            // 2. Strict Price Range Filter
+            // If the price is unknown (0), we now INCLUDE it per user request
+            if place.priceLevel != 0 {
+                if place.priceLevel < minPrice || place.priceLevel > maxPrice {
+                    print("RestaurantService: Filtering out \(place.name) - Price Level \(place.priceLevel) outside \(minPrice)-\(maxPrice)")
+                    return false
+                }
+            }
+            
+            // 3. Quality Filters
+            let hasImages = !place.imageUrls.isEmpty
+            let rating = place.rating
+            
             if rawPlaces.count > 10 {
-                return !place.imageUrls.isEmpty && place.rating >= 3.0
+                let keep = hasImages && rating >= 3.0
+                if !keep {
+                    print("RestaurantService: Filtering out \(place.name) - HasImages: \(hasImages), Rating: \(rating) (Strict Quality)")
+                }
+                return keep
             } else {
-                return place.rating >= 2.0 // Lower bar if few results
+                let keep = rating >= 2.0
+                if !keep {
+                    print("RestaurantService: Filtering out \(place.name) - Rating: \(rating) (Loose Quality)")
+                }
+                return keep
             }
         }
+    }
+    
+    func fetchNearbyRestaurants(lat: Double, lng: Double, radius: Double, minPrice: Int, maxPrice: Int) async throws -> [GooglePlace] {
+        let categories = ["restaurant", "cafe", "bakery", "bar"]
+        
+        print("RestaurantService: Fetching nearby with radius \(radius)m, price range \(minPrice)-\(maxPrice)")
+        
+        return try await withThrowingTaskGroup(of: [GooglePlace].self) { group in
+            for category in categories {
+                group.addTask {
+                    return try await self.fetchCategory(category, lat: lat, lng: lng, radius: radius, minPrice: minPrice, maxPrice: maxPrice)
+                }
+            }
+            
+            var allPlaces: [GooglePlace] = []
+            for try await categoryPlaces in group {
+                allPlaces.append(contentsOf: categoryPlaces)
+            }
+            
+            let uniquePlaces = Array(Dictionary(grouping: allPlaces, by: { $0.id }).values.compactMap { $0.first })
+            print("RestaurantService: Total unique places found from API: \(uniquePlaces.count)")
+            return uniquePlaces.shuffled()
+        }
+    }
+    
+    private func fetchCategory(_ type: String, lat: Double, lng: Double, radius: Double, minPrice: Int, maxPrice: Int) async throws -> [GooglePlace] {
+        let url = URL(string: "https://places.googleapis.com/v1/places:searchNearby")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue(GoogleConfig.apiKey, forHTTPHeaderField: "X-Goog-Api-Key")
+        request.addValue("places.id,places.displayName,places.rating,places.priceLevel,places.formattedAddress,places.photos,places.location", forHTTPHeaderField: "X-Goog-FieldMask")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "includedPrimaryTypes": [type],
+            "maxResultCount": 20,
+            "locationRestriction": [
+                "circle": [
+                    "center": ["latitude": lat, "longitude": lng],
+                    "radius": radius
+                ]
+            ]
+        ]
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            print("RestaurantService: API Error for category \(type): Status \(httpResponse.statusCode)")
+            return []
+        }
+        
+        let decodedResponse = try JSONDecoder().decode(GooglePlacesResponse.self, from: data)
+        let rawPlaces = decodedResponse.places ?? []
+        let processed = processRawPlaces(rawPlaces, userLat: lat, userLng: lng, radius: radius, minPrice: minPrice, maxPrice: maxPrice)
+        print("RestaurantService: Category \(type) - Raw: \(rawPlaces.count), Processed: \(processed.count)")
+        return processed
     }
     
     func fetchRestaurantDetails(placeId: String) async throws -> GooglePlace {
@@ -114,12 +207,16 @@ class RestaurantService: RestaurantServiceProtocol {
         } ?? []
         
         let priceInt: Int
-        switch place.priceLevel {
-            case "PRICE_LEVEL_INEXPENSIVE": priceInt = 1
-            case "PRICE_LEVEL_MODERATE": priceInt = 2
-            case "PRICE_LEVEL_EXPENSIVE": priceInt = 3
-            case "PRICE_LEVEL_VERY_EXPENSIVE": priceInt = 4
-            default: priceInt = 1
+        if let level = place.priceLevel {
+            switch level {
+                case "PRICE_LEVEL_INEXPENSIVE": priceInt = 1
+                case "PRICE_LEVEL_MODERATE": priceInt = 2
+                case "PRICE_LEVEL_EXPENSIVE": priceInt = 3
+                case "PRICE_LEVEL_VERY_EXPENSIVE": priceInt = 4
+                default: priceInt = 0
+            }
+        } else {
+            priceInt = 0
         }
         
         return GooglePlace(

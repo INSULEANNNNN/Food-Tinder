@@ -64,7 +64,7 @@ struct RestaurantDetailView: View {
                             
                             Text("•").foregroundColor(.gray)
                             
-                            Text(String(repeating: "฿", count: restaurant.priceLevel))
+                            Text(restaurant.priceString)
                                 .foregroundColor(.green)
                                 .fontWeight(.bold)
                             

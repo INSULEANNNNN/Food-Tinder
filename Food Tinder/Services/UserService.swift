@@ -17,15 +17,36 @@ struct UserProfile: Codable {
     }
 }
 
+struct LocationUpdate: Codable {
+    let last_latitude: Double
+    let last_longitude: Double
+    let last_located_at: Date
+}
+
 protocol UserServiceProtocol {
     func fetchUserProfile(userId: UUID) async throws -> UserProfile
     func updateUserProfile(_ profile: UserProfile) async throws -> Bool
     func uploadProfileImage(userId: UUID, data: Data) async throws -> String
+    func updateLocation(userId: UUID, lat: Double, lng: Double) async throws
 }
 
 class UserService: UserServiceProtocol {
     static let shared = UserService()
     private init() {}
+    
+    func updateLocation(userId: UUID, lat: Double, lng: Double) async throws {
+        let update = LocationUpdate(
+            last_latitude: lat,
+            last_longitude: lng,
+            last_located_at: Date()
+        )
+        
+        try await supabase
+            .from("users")
+            .update(update)
+            .eq("id", value: userId)
+            .execute()
+    }
     
     func fetchUserProfile(userId: UUID) async throws -> UserProfile {
         return try await supabase

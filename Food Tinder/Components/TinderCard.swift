@@ -76,7 +76,7 @@ struct TinderCard: View {
                         
                         Text("•").foregroundColor(.white.opacity(0.5))
                         
-                        Text(String(repeating: "฿", count: min(place.priceLevel, 4)))
+                        Text(place.priceString)
                             .foregroundColor(.green)
                             .fontWeight(.bold)
                         

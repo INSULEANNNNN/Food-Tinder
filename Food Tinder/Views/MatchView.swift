@@ -19,7 +19,7 @@ struct MatchView: View {
                             .font(.title3.bold())
                             .foregroundColor(.gray)
                         
-                        Text("ลองปัดขวาในหน้าร้านอาหารเพื่อบันทึกร้านที่คุณสนใจไว้ที่นี่")
+                        Text("ลองปัดขวาในหน้าร้านอาหารเพื่อบันทึกร้านที่คุณสนใจไว้ที่นี่\n\nร้านที่ถูกใจจะถูกรีเซ็ตหลังจาก 1 สัปดาห์นับจากวันที่เลือก\n(Your liked restaurants will be reset 1 week after swiped)")
                             .font(.subheadline)
                             .foregroundColor(.gray.opacity(0.8))
                             .multilineTextAlignment(.center)
@@ -27,51 +27,70 @@ struct MatchView: View {
                     }
                 } else {
                     List {
-                        ForEach(matchManager.matchedRestaurants) { restaurant in
-                            Button(action: {
-                                selectedRestaurant = restaurant
-                            }) {
-                                HStack(spacing: 16) {
-                                    AsyncImage(url: URL(string: restaurant.imageUrl)) { image in
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                    } placeholder: {
-                                        Color.gray.opacity(0.1)
+                        Section(footer: Text("ร้านที่ถูกใจจะถูกรีเซ็ตหลังจาก 1 สัปดาห์นับจากวันที่เลือก\nYour liked restaurants will be reset 1 week after being swiped.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 8)
+                            .frame(maxWidth: .infinity)
+                        ) {
+                            ForEach(matchManager.matchedRestaurants) { restaurant in
+                                Button(action: {
+                                    selectedRestaurant = restaurant
+                                }) {
+                                    HStack(spacing: 16) {
+                                        AsyncImage(url: URL(string: restaurant.imageUrl)) { image in
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                        } placeholder: {
+                                            Color.gray.opacity(0.1)
+                                        }
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(restaurant.name)
+                                                .font(.headline)
+                                                .foregroundColor(.primary)
+                                            
+                                            HStack(spacing: 8) {
+                                                Text(restaurant.priceString)
+                                                    .font(.caption.bold())
+                                                    .foregroundColor(.green)
+                                                
+                                                Text("•")
+                                                    .font(.caption)
+                                                    .foregroundColor(.gray)
+                                                
+                                                Text(restaurant.address)
+                                                    .font(.caption)
+                                                    .foregroundColor(.gray)
+                                                    .lineLimit(1)
+                                            }
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Button(action: {
+                                            shareMatch(restaurant: restaurant)
+                                        }) {
+                                            Image(systemName: "square.and.arrow.up")
+                                                .foregroundColor(primaryColor)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
                                     }
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(restaurant.name)
-                                            .font(.headline)
-                                            .foregroundColor(.primary)
-                                        Text(restaurant.address)
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
-                                            .lineLimit(1)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        shareMatch(restaurant: restaurant)
-                                    }) {
-                                        Image(systemName: "square.and.arrow.up")
-                                            .foregroundColor(primaryColor)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
                                 }
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .padding(.vertical, 4)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    Task {
-                                        await matchManager.removeMatch(restaurant)
+                                .buttonStyle(PlainButtonStyle())
+                                .padding(.vertical, 4)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            await matchManager.removeMatch(restaurant)
+                                        }
+                                    } label: {
+                                        Label("ลบ", systemImage: "trash.fill")
                                     }
-                                } label: {
-                                    Label("ลบ", systemImage: "trash.fill")
                                 }
                             }
                         }

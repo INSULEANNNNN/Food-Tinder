@@ -27,8 +27,8 @@ class AuthViewModel: ObservableObject {
         defer { isAuthenticating = false }
         
         do {
-            let session = try? await supabase.auth.session
-            if let session = session, !session.isExpired {
+            let session = try await supabase.auth.session
+            if !session.isExpired {
                 await fetchProfile()
                 Task {
                     await matchManager?.ensureActiveSession()
@@ -37,7 +37,7 @@ class AuthViewModel: ObservableObject {
                 self.isLoggedIn = true
             }
         } catch {
-            print("AuthViewModel: Session check failed: \(error)")
+            print("AuthViewModel: No active session or check failed: \(error)")
         }
     }
     
