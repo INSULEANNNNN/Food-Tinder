@@ -61,7 +61,9 @@ class SwipeViewModel: ObservableObject {
                 if let sessionId = sessionId {
                     self?.syncWithSession(sessionId)
                 } else {
-                    self?.stopSessionSync()
+                    Task {
+                        await self?.stopSessionSync()
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -69,11 +71,15 @@ class SwipeViewModel: ObservableObject {
     
     private func syncWithSession(_ sessionId: UUID) {
         Task {
+            // Stop existing sync if any
+            await stopSessionSync()
+            
             // 1. Fetch initial session filters
             await fetchSessionFilters(sessionId: sessionId)
             
             // 2. Listen for realtime updates to this session
-            let channel = supabase.channel("session_filters_\(sessionId.uuidString)")
+            let channelName = "session_filters_\(sessionId.uuidString)"
+            let channel = supabase.channel(channelName)
             
             let changes = channel.postgresChange(
                 AnyAction.self,
@@ -93,9 +99,9 @@ class SwipeViewModel: ObservableObject {
         }
     }
     
-    private func stopSessionSync() {
+    private func stopSessionSync() async {
         if let channel = sessionChannel {
-            Task { await supabase.removeChannel(channel) }
+            await supabase.removeChannel(channel)
         }
         sessionChannel = nil
     }
@@ -104,7 +110,7 @@ class SwipeViewModel: ObservableObject {
         do {
             let session: FTSessionDetail = try await supabase
                 .from("sessions")
-                .select("filter_radius_meters, filter_min_price, filter_max_price, filter_keyword")
+                .select("filter_radius_meters, filter_min_price, filter_max_price, filter_keyword, lat, lng")
                 .eq("id", value: sessionId)
                 .single()
                 .execute()
@@ -151,12 +157,49 @@ class SwipeViewModel: ObservableObject {
         
         isLoading = true
         do {
+            var searchLocation = location
+            
+            // If in an active group session, use the fixed session location
+            if let sessionId = matchManager?.currentSessionId, matchManager?.currentSessionStatus == "active" {
+                print("SwipeViewModel: Active group session, fetching session location...")
+                do {
+                    let sessionData: FTSessionDetail = try await supabase
+                        .from("sessions")
+                        .select("id, created_by, status, lat, lng")
+                        .eq("id", value: sessionId)
+                        .single()
+                        .execute()
+                        .value
+                    
+                    if let sLat = sessionData.lat, let sLng = sessionData.lng {
+                        print("SwipeViewModel: Using fixed session location: \(sLat), \(sLng)")
+                        searchLocation = CLLocationCoordinate2D(latitude: sLat, longitude: sLng)
+                    } else if let hostId = sessionData.created_by {
+                        // Fallback to fetching host profile if session lat/lng is missing
+                        let hostProfile: UserLocation = try await supabase
+                            .from("users")
+                            .select("id, last_latitude, last_longitude")
+                            .eq("id", value: hostId)
+                            .single()
+                            .execute()
+                            .value
+                        
+                        if let hLat = hostProfile.last_latitude, let hLng = hostProfile.last_longitude {
+                            print("SwipeViewModel: Using host profile fallback location: \(hLat), \(hLng)")
+                            searchLocation = CLLocationCoordinate2D(latitude: hLat, longitude: hLng)
+                        }
+                    }
+                } catch {
+                    print("SwipeViewModel: Could not fetch session/host location (\(error)). Falling back to local.")
+                }
+            }
+
             let fetchedRestaurants: [GooglePlace]
             
             if cuisine.isEmpty {
                 fetchedRestaurants = try await restaurantService.fetchNearbyRestaurants(
-                    lat: location.latitude,
-                    lng: location.longitude,
+                    lat: searchLocation.latitude,
+                    lng: searchLocation.longitude,
                     radius: radius * 1000.0,
                     minPrice: minPrice,
                     maxPrice: maxPrice
@@ -164,8 +207,8 @@ class SwipeViewModel: ObservableObject {
             } else {
                 fetchedRestaurants = try await restaurantService.fetchByQuery(
                     query: cuisine,
-                    lat: location.latitude,
-                    lng: location.longitude,
+                    lat: searchLocation.latitude,
+                    lng: searchLocation.longitude,
                     radius: radius * 1000.0,
                     minPrice: minPrice,
                     maxPrice: maxPrice
@@ -269,8 +312,13 @@ class SwipeViewModel: ObservableObject {
 }
 
 struct FTSessionDetail: Codable {
+    let id: UUID?
+    let created_by: UUID?
+    let status: String?
     let filter_radius_meters: Int?
     let filter_min_price: Int?
     let filter_max_price: Int?
     let filter_keyword: String?
+    let lat: Double?
+    let lng: Double?
 }

@@ -49,7 +49,7 @@ struct OnboardingView: View {
                         ScrollView {
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                                 ForEach(["อาหารไทย", "ญี่ปุ่น", "อิตาเลียน", "เบอร์เกอร์", "หมูกระทะ", "ของหวาน"], id: \.self) { item in
-                                    CuisineTag(title: item)
+                                    CuisineTag(title: item, primaryColor: primaryColor)
                                 }
                             }
                         }
@@ -147,6 +147,7 @@ struct OnboardingStep: View {
 
 struct CuisineTag: View {
     let title: String
+    let primaryColor: Color
     @State private var isSelected = false
     
     var body: some View {
@@ -155,12 +156,12 @@ struct CuisineTag: View {
                 .fontWeight(.medium)
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(isSelected ? Color(red: 255/255, green: 87/255, blue: 51/255).opacity(0.1) : Color.gray.opacity(0.05))
-                .foregroundColor(isSelected ? Color(red: 255/255, green: 87/255, blue: 51/255) : .primary)
+                .background(isSelected ? primaryColor.opacity(0.15) : Color(uiColor: .secondarySystemBackground))
+                .foregroundColor(isSelected ? primaryColor : .primary)
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? Color(red: 255/255, green: 87/255, blue: 51/255) : Color.clear, lineWidth: 1)
+                        .stroke(isSelected ? primaryColor : Color.clear, lineWidth: 1)
                 )
         }
     }

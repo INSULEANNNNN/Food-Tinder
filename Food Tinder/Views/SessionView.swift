@@ -11,7 +11,7 @@ struct SessionView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 24) {
-                if let sessionId = matchManager.currentSessionId {
+                if let sessionId = matchManager.currentSessionId, matchManager.currentSessionStatus == "active" {
                     VStack(spacing: 20) {
                         Image(systemName: "person.2.fill")
                             .font(.system(size: 80))
@@ -20,42 +20,73 @@ struct SessionView: View {
                         Text("กำลังอยู่ในเซสชันกลุ่ม")
                             .font(.title2.bold())
                         
-                        Text("รหัสเซสชัน: \(sessionId.uuidString.prefix(8))")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                        HStack(spacing: 12) {
+                            Text("รหัสเซสชัน: \(sessionId.uuidString.prefix(8))")
+                                .font(.system(.subheadline, design: .monospaced))
+                                .foregroundColor(.gray)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(8)
+                            
+                            Button(action: {
+                                UIPasteboard.general.string = String(sessionId.uuidString.prefix(8))
+                                // Optional: Add a simple haptic feedback or toast
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.impactOccurred()
+                            }) {
+                                Image(systemName: "doc.on.doc")
+                                    .foregroundColor(primaryColor)
+                                    .font(.system(size: 18))
+                            }
+                        }
                         
                         VStack(alignment: .leading, spacing: 12) {
                             Text("แมตช์ของกลุ่ม")
                                 .font(.headline)
                             
                             if matchManager.groupMatches.isEmpty {
-                                Text("ยังไม่มีร้านที่ทุกคนถูกใจตรงกัน")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                    .padding()
-                                    .frame(maxWidth: .infinity)
-                                    .background(Color.gray.opacity(0.1))
-                                    .cornerRadius(10)
+                                VStack(spacing: 12) {
+                                    Text("ยังไม่มีร้านที่ทุกคนถูกใจตรงกัน")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                    
+                                    Button(action: {
+                                        // Simple way to switch tabs: navigate or notify
+                                        // For now, we'll just advise them to go to the Explore tab
+                                    }) {
+                                        Text("ไปที่หน้าหลักเพื่อเริ่มปัด")
+                                            .font(.caption.bold())
+                                            .foregroundColor(primaryColor)
+                                    }
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(10)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 16) {
                                         ForEach(matchManager.groupMatches) { restaurant in
-                                            VStack {
-                                                AsyncImage(url: URL(string: restaurant.imageUrl)) { image in
-                                                    image
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fill)
-                                                } placeholder: {
-                                                    Color.gray.opacity(0.1)
+                                            NavigationLink(destination: RestaurantDetailView(restaurant: restaurant)) {
+                                                VStack {
+                                                    AsyncImage(url: URL(string: restaurant.imageUrl)) { image in
+                                                        image
+                                                            .resizable()
+                                                            .aspectRatio(contentMode: .fill)
+                                                    } placeholder: {
+                                                        Color.gray.opacity(0.1)
+                                                    }
+                                                    .frame(width: 100, height: 100)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 15))
+                                                    
+                                                    Text(restaurant.name)
+                                                        .font(.caption.bold())
+                                                        .foregroundColor(.primary)
+                                                        .lineLimit(1)
                                                 }
-                                                .frame(width: 100, height: 100)
-                                                .clipShape(RoundedRectangle(cornerRadius: 15))
-                                                
-                                                Text(restaurant.name)
-                                                    .font(.caption.bold())
-                                                    .lineLimit(1)
+                                                .frame(width: 100)
                                             }
-                                            .frame(width: 100)
                                         }
                                     }
                                     .padding(.horizontal, 4)

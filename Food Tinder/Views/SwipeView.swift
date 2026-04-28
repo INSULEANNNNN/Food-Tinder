@@ -137,6 +137,9 @@ struct SwipeView: View {
                 viewModel.reload()
             }
         }
+        .onChange(of: matchManager.currentSessionId) { _ in
+            viewModel.reload()
+        }
     }
 }
 

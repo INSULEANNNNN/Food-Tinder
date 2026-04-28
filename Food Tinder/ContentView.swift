@@ -6,7 +6,7 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Color(uiColor: .systemBackground).ignoresSafeArea()
             
             Group {
                 if authViewModel.isLoggedIn {
@@ -29,7 +29,7 @@ struct ContentView: View {
             // Splash / Loading Overlay
             if authViewModel.isAuthenticating {
                 ZStack {
-                    Color.white.ignoresSafeArea()
+                    Color(uiColor: .systemBackground).ignoresSafeArea()
                     VStack(spacing: 20) {
                         Text("🍕")
                             .font(.system(size: 80))

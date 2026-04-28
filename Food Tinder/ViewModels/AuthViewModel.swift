@@ -102,6 +102,9 @@ class AuthViewModel: ObservableObject {
     
     func logout() {
         Task {
+            if let mm = matchManager {
+                await mm.leaveSession()
+            }
             try? await authService.logout()
             await MainActor.run {
                 self.isLoggedIn = false
