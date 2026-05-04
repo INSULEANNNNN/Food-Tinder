@@ -31,7 +31,7 @@ class SwipeViewModel: ObservableObject {
         }
     }
     
-    private let restaurantService = RestaurantService.shared
+    private let restaurantService: RestaurantServiceProtocol = MockRestaurantService.shared
     private let locationManager = LocationManager()
     private var cancellables = Set<AnyCancellable>()
     private var sessionChannel: RealtimeChannelV2?

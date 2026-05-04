@@ -47,7 +47,7 @@ class MatchManager: ObservableObject {
     
     private var cachedUserId: UUID?
     private var isFetchingLikes = false
-    private let restaurantService = RestaurantService.shared
+    private let restaurantService: RestaurantServiceProtocol = MockRestaurantService.shared
     public let locationManager = LocationManager()
     private var realtimeChannel: RealtimeChannelV2?
     
